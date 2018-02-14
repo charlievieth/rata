@@ -3,9 +3,10 @@ package rata
 import (
 	"fmt"
 	"net/http"
+	"path"
 	"strings"
 
-	"github.com/bmizerany/pat"
+	"github.com/gorilla/mux"
 )
 
 // Supported HTTP methods.
@@ -25,12 +26,21 @@ const (
 // match a route Name in the Routes collection.
 type Handlers map[string]http.Handler
 
+func convertVar(p string) string {
+	a := strings.Split(path.Clean(p), "/")
+	for i, s := range a {
+		if strings.HasPrefix(s, ":") {
+			a[i] = "{" + s[1:] + "}"
+		}
+	}
+	return strings.Join(a, "/")
+}
+
 // NewRouter combines a set of Routes with their corresponding Handlers to
 // produce a http request multiplexer (AKA a "router").  If any route does
 // not have a matching handler, an error occurs.
 func NewRouter(routes Routes, handlers Handlers) (http.Handler, error) {
-	p := pat.New()
-
+	m := mux.NewRouter()
 	for _, route := range routes {
 		handler, ok := handlers[route.Name]
 		if !ok {
@@ -39,11 +49,11 @@ func NewRouter(routes Routes, handlers Handlers) (http.Handler, error) {
 
 		switch method := strings.ToUpper(route.Method); method {
 		case GET, HEAD, POST, PUT, PATCH, DELETE, CONNECT, OPTIONS, TRACE:
-			p.Add(method, route.Path, handler)
+			m.Handle(convertVar(route.Path), handler).Methods(method)
 		default:
 			return nil, fmt.Errorf("invalid verb: %s", route.Method)
 		}
 	}
 
-	return p, nil
+	return m, nil
 }

@@ -1,8 +1,15 @@
 package rata
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/gorilla/mux"
+)
 
 //  Param returns the parameter with the given name from the given request.
 func Param(req *http.Request, paramName string) string {
-	return req.URL.Query().Get(":" + paramName)
+	if v := mux.Vars(req); v != nil {
+		return v[paramName]
+	}
+	return ""
 }
